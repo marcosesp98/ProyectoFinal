@@ -1,28 +1,11 @@
 # Databricks notebook source
 datalake='datalakesiglo21'
-container='getsfront'
+containerdl='getsfront'
 AzureSQL='sqlsiglo211'
-AccesKey='YIDLPbl6Ec19gAfd/KOMeIpJSyjn5A+8qnHeoxksA2dIBz+THJiMDnyYJZcQeeEEtQiUqcVh8llK+ASt6D4S9w=='
+AccessKey='YIDLPbl6Ec19gAfd/KOMeIpJSyjn5A+8qnHeoxksA2dIBz+THJiMDnyYJZcQeeEEtQiUqcVh8llK+ASt6D4S9w=='
 bacpac='dbRetail'
 user='server'
 pss='Test1234'
-
-# COMMAND ----------
-
-#conexion a azure sql
-jdbcHostname = "sqlsiglo211.database.windows.net"#{nombre recurso}.database.windows.net"
-jdbcPort = 1433
-jdbcDatabase = "dbRetail"
-jdbcUsername = "server"
-jdbcPassword = "Test1234"
-jdbcDriver = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-
-jdbcUrl = f"jdbc:sqlserver://{jdbcHostname}:{jdbcPort};databaseName={jdbcDatabase};user={jdbcUsername};password={jdbcPassword}"
-
-#variables para conectar al storage/datalake    
-datalake='datalakesiglo21'
-containerdl='getsfront'
-accesskeydl='YIDLPbl6Ec19gAfd/KOMeIpJSyjn5A+8qnHeoxksA2dIBz+THJiMDnyYJZcQeeEEtQiUqcVh8llK+ASt6D4S9w=='
 
 # COMMAND ----------
 
@@ -37,7 +20,7 @@ spark=SparkSession.builder.appName("transformaciones").getOrCreate()
 
 def montar_almacenamiento(storage,container,accesskey):
     #se crean carpetas sobre las cuales se montan los container
-    dbutils.fs.mkdirs('dbfs:/mnt/'+container)
+    dbutils.fs.mkdirs('/mnt/'+container)
     #se montan los container en las carpetas
     dbutils.fs.mount(
     source = 'wasbs://'+container+'@'+storage+'.blob.core.windows.net' ,
@@ -66,25 +49,17 @@ def transformacion_almacenar(transformacion,container,nombretransformacion):
     
 
 #se monta datalake
-montar_almacenamiento(datalake,containerdl,accesskeydl)
+montar_almacenamiento(datalake,containerdl,AccessKey)
 
 #se crea carpeta temporal
 dbutils.fs.mkdirs('/mnt/'+containerdl+'/temp')
 
 # COMMAND ----------
 
-#importar dataframes necesarios
-#StockProductos
-dfStockProductos=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.StockProductos").load()
-#Producto
-dfProducto=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Producto").load()
-#Categoria
-dfCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Categoria").load()
-#SubCategoria
-dfSubCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.SubCategoria").load()
-#Sucursales
-dfSucursales=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Sucursales").load()
-
+dfCategorias=spark.read.json('/mnt/getsfront/Categoria')
+dfProducto=spark.read.json('/mnt/getsfront/Producto')
+dfSubCategoria=spark.read.json('/mnt/getsfront/SubCategoria')
+dfSucursales=spark.read.json('/mnt/getsfront/Sucursales')
 
 # COMMAND ----------
 
@@ -139,9 +114,6 @@ joincategoria = joinsubcategoria.join(dfCategoria,joinsubcategoria.Cod_Categoria
 transformacion2 = joincategoria.select(dfProducto.Cod_Producto,col("Producto"),col("StockReal"),col("Sucursal")).distinct()
 transformacion_almacenar(transformacion2,containerdl,"cuandoNoHayStock.json")
 
-# COMMAND ----------
-
-display(joinsubcategoria)
 
 # COMMAND ----------
 
