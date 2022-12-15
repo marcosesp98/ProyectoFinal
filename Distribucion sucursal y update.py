@@ -3,15 +3,17 @@ import pyspark
 from pyspark.sql import SparkSession
 import pandas as pd
 import numpy as np
+import os
+import json
 import pyodbc
 spark=SparkSession.builder.appName("transformaciones").getOrCreate()
 
 # COMMAND ----------
 
-datalake='datalakemarcos'
-container='productosjson'
-AzureSQL='sqlmarcos'
-AccesKey='JnVoTznnKD9tBmycYhwhulbkpnIWunlvTuC572T+c4O/nF3gsDrSIuFZy1/Lrr9TlYHYBv6yvJ8N+AStduQj7A=='
+datalake='datalakesiglo21'
+container='getsfront'
+AzureSQL='sqlsiglo211'
+AccesKey='YIDLPbl6Ec19gAfd/KOMeIpJSyjn5A+8qnHeoxksA2dIBz+THJiMDnyYJZcQeeEEtQiUqcVh8llK+ASt6D4S9w=='
 bacpac='dbRetail'
 user='server'
 pss='Test1234'
@@ -40,7 +42,7 @@ jdbcUrl = f"jdbc:sqlserver://{jdbcHostname}:{jdbcPort};databaseName={jdbcDatabas
 
 # COMMAND ----------
 
-jsonProductos=spark.read.option('multiline','true').json('/mnt/output/salida.json')
+jsonProductos=spark.read.option('multiline','true').json('/mnt/putsfront/salida.json')
 jsonProductos.show()
 #LEO EL JSON DEL PROVEEDOR ^^^^^^
 
@@ -295,12 +297,38 @@ list(map(upsertAzureSQL,lista_dataframes,
 
 # COMMAND ----------
 
-upsertAzureSQL(dataframe, "stage", "stockproductos", "Cod_Producto|Cod_Sucursal", None)
+dfProducto=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Producto").load()
+#Categoria
+dfCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Categoria").load()
+dfSubCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.SubCategoria").load()
+dfSucursales=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.sucursales").load()
+
+def transformacion_almacenar(transformacion,container,nombretransformacion):
+    #se guarda la transformacion en la carpeta temporal
+    transformacion.coalesce(1).write.mode("overwrite").format("json").save("dbfs:/mnt/"+container+"/temp")
+    #se guarda solo el archivo que tiene las transformaciones en si
+    files = dbutils.fs.ls("/mnt/"+container+"/temp")
+    output_file = [x for x in files if x.name.startswith("part-")]
+    filename=output_file[0].name
+    dbutils.fs.mv("dbfs:/mnt/"+container+"/temp/"+filename,"dbfs:/mnt/"+container+"/"+nombretransformacion)
+    #se borra archivos temporales
+    tempfiles = dbutils.fs.ls("dbfs:/mnt/"+container+"/temp/")
+    for x in tempfiles:
+        dbutils.fs.rm("dbfs:/mnt/"+container+"/temp/"+x.name,recurse=True)
+
+    with open("/dbfs/mnt/"+container+"/"+nombretransformacion,"r") as arch:
+        lines = [json.loads(line.rstrip()) for line in arch]
+    arch = open("/dbfs/mnt/"+container+"/"+nombretransformacion,"w")
+    arch.write(str(lines).replace("\'","\""))
+    arch.close()
+    
 
 # COMMAND ----------
 
-dfStage=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.stage").load()
-dfStockProductos=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.StockProductos").load()
+transformacion_almacenar(dfProducto,container,"Productos")
+transformacion_almacenar(dfCategoria,container,"Categoria")
+transformacion_almacenar(dfSubCategoria,container,"SubCategoria")
+transformacion_almacenar(dfSucursales,container,"Sucursales")
 
 # COMMAND ----------
 
