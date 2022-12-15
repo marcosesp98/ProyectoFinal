@@ -57,7 +57,7 @@ dbutils.fs.mkdirs('/mnt/'+containerdl+'/temp')
 # COMMAND ----------
 
 dfCategorias=spark.read.json('/mnt/getsfront/Categoria')
-dfProducto=spark.read.json('/mnt/getsfront/Producto')
+dfProducto=spark.read.json('/mnt/getsfront/Productos')
 dfSubCategoria=spark.read.json('/mnt/getsfront/SubCategoria')
 dfSucursales=spark.read.json('/mnt/getsfront/Sucursales')
 
@@ -86,6 +86,10 @@ joinsubcategoria =joinproducto.join(dfSubCategoria,joinproducto.Cod_SubCategoria
 joincategoria = joinsubcategoria.join(dfCategoria,joinsubcategoria.Cod_Categoria == dfCategoria.Cod_Categoria,"inner")
 transformacion1 = joincategoria.select(dfProducto.Cod_Producto,col("Producto"),col("StockTotal"),col("Categoria"),col("SubCategoria")).distinct()
 transformacion_almacenar(transformacion1,containerdl,"cuandoHayStock.json")
+
+# COMMAND ----------
+
+joinpagina=joinsubcategoria
 
 # COMMAND ----------
 
