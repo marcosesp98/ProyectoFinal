@@ -40,7 +40,7 @@ jdbcUrl = f"jdbc:sqlserver://{jdbcHostname}:{jdbcPort};databaseName={jdbcDatabas
 
 # COMMAND ----------
 
-'''jsonProductos=spark.read.option('multiline','true').json('/mnt/output/salida.json')
+jsonProductos=spark.read.option('multiline','true').json('/mnt/output/salida.json')
 jsonProductos.show()
 #LEO EL JSON DEL PROVEEDOR ^^^^^^
 
@@ -49,7 +49,7 @@ columnas_json=jsonProductospd.to_numpy().transpose().tolist()
 lista_cod_producto=[int(i) for i in columnas_json[0]]
 lista_stock=[int(i) for i in columnas_json[1]]
 #CREO LISTAS CON LAS COLUMNAS DEL DATAFRAME ^^^^^^
-#LAS VOY A METER A UNA FUNCION MAP PARA QUE ME PRODUZCA LOS DATAFRAME A GUARDAR ^^^^'''
+#LAS VOY A METER A UNA FUNCION MAP PARA QUE ME PRODUZCA LOS DATAFRAME A GUARDAR ^^^^
 
 # COMMAND ----------
 
@@ -209,18 +209,6 @@ def distribuir_stock(cod_prod,cantidad):
 
 # COMMAND ----------
 
-dataframe=distribuir_stock(260,30)
-dataframe2=distribuir_stock(222,10)
-dataframe3=distribuir_stock(260,40)
-dataframe4=distribuir_stock(280,40)
-
-# COMMAND ----------
-
-display(dataframe)
-display(dataframe3)
-
-# COMMAND ----------
-
 #esta operacion lo que hace es usar la funcion distribuir stock y las listas del json cargados del datalake, y con las variables creadas hago la distribucion automatica
 lista_dataframes=list(map(distribuir_stock,lista_cod_producto,lista_stock))
 
@@ -288,6 +276,17 @@ def upsertAzureSQL(df, azureStagingTable, azureSqlTargetTable, lookupColumns, de
 
 # COMMAND ----------
 
+# MAGIC %sh
+# MAGIC curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+# MAGIC curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list 
+# MAGIC apt-get update
+# MAGIC ACCEPT_EULA=Y apt-get install msodbcsql17
+# MAGIC apt-get -y install unixodbc-dev
+# MAGIC sudo apt-get install python3-pip -y
+# MAGIC pip3 install --upgrade pyodbc
+
+# COMMAND ----------
+
 list(map(upsertAzureSQL,lista_dataframes,
          ["Stage" for i in range(len(lista_stock))],
          ["stockproductos" for i in range(len(lista_stock))],
@@ -302,10 +301,6 @@ upsertAzureSQL(dataframe, "stage", "stockproductos", "Cod_Producto|Cod_Sucursal"
 
 dfStage=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.stage").load()
 dfStockProductos=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.StockProductos").load()
-
-# COMMAND ----------
-
-dfStockProductos.show()
 
 # COMMAND ----------
 
