@@ -325,10 +325,7 @@ def transformacion_almacenar(transformacion,container,nombretransformacion):
 
 # COMMAND ----------
 
-transformacion_almacenar(dfProducto,container,"Productos")
-transformacion_almacenar(dfCategoria,container,"Categoria")
-transformacion_almacenar(dfSubCategoria,container,"SubCategoria")
-transformacion_almacenar(dfSucursales,container,"Sucursales")
+transformacion_almacenar(dfVentasInternet,container,"VentasInternet")
 
 # COMMAND ----------
 
