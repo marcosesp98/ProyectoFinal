@@ -1,4 +1,8 @@
 # Databricks notebook source
+
+
+# COMMAND ----------
+
 import pyspark
 from pyspark.sql import SparkSession
 import pandas as pd
@@ -297,11 +301,6 @@ list(map(upsertAzureSQL,lista_dataframes,
 
 # COMMAND ----------
 
-dfProducto=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Producto").load()
-#Categoria
-dfCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.Categoria").load()
-dfSubCategoria=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.SubCategoria").load()
-dfSucursales=spark.read.format("jdbc").option("url", jdbcUrl).option("dbtable", "dbo.sucursales").load()
 
 def transformacion_almacenar(transformacion,container,nombretransformacion):
     #se guarda la transformacion en la carpeta temporal
@@ -325,10 +324,40 @@ def transformacion_almacenar(transformacion,container,nombretransformacion):
 
 # COMMAND ----------
 
+df2=lista_dataframes[0].toPandas()
+print(df2)
+stockProductosDatalake=spark.read.json('/mnt/getsfront/StockProductos')
+stockProductosDatalakePandas=stockProductosDatalake.toPandas()
+display(stockProductosDatalakePandas)
+
+
+# COMMAND ----------
+
+
+
+stockProductosDatalakePandas.set_index(["Cod_Producto","Cod_Sucursal"],inplace=True)
+stockProductosDatalakePandas.update(df2.set_index(["Cod_Producto","Cod_Sucursal"]))
+print(stockProductosDatalakePandas)
+stockProductosDatalakePandas.reset_index(drop=True,inplace=True)
+
+print(stockProductosDatalakePandas.columns)
+
+# COMMAND ----------
+
+display(dfspark)
+
+# COMMAND ----------
+
+stockProductosDatalakePandas.set_index("Cod_Producto",inplace=True)
+stockProductosDatalakePandas.update(df2.set_index('Cod_Producto',inplace=True))
+stockProductosDatalakePandas.reset_index
+dfspark=createDataFrame(stockProductosDatalakePandas)
+display(dfspark)
+
+# COMMAND ----------
+
 transformacion_almacenar(dfProducto,container,"Productos")
-transformacion_almacenar(dfCategoria,container,"Categoria")
-transformacion_almacenar(dfSubCategoria,container,"SubCategoria")
-transformacion_almacenar(dfSucursales,container,"Sucursales")
+
 
 # COMMAND ----------
 

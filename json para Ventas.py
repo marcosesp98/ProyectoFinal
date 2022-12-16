@@ -18,14 +18,19 @@ spark=SparkSession.builder.appName("transformaciones").getOrCreate()
 
 # COMMAND ----------
 
-def montar_almacenamiento(storage,container,accesskey):
-    #se crean carpetas sobre las cuales se montan los container
-    dbutils.fs.mkdirs('/mnt/'+container)
-    #se montan los container en las carpetas
-    dbutils.fs.mount(
-    source = 'wasbs://'+container+'@'+storage+'.blob.core.windows.net' ,
-    mount_point = '/mnt/'+container,
-    extra_configs = {'fs.azure.account.key.'+storage+'.blob.core.windows.net':accesskey})
+try:
+    def montar_almacenamiento(storage,container,accesskey):
+        #se crean carpetas sobre las cuales se montan los container
+        #se montan los container en las carpetas
+        dbutils.fs.mount(
+        source = 'wasbs://'+container+'@'+storage+'.blob.core.windows.net' ,
+        mount_point = '/mnt/'+container,
+        extra_configs = {'fs.azure.account.key.'+storage+'.blob.core.windows.net':accesskey})
+        
+        #se monta datalake
+    montar_almacenamiento(datalake,containerdl,AccessKey)
+except:
+    pass
 
 #aca guarda la variable transformacion dentro de la carpeta container en el archivo nombretransformacion
 def transformacion_almacenar(transformacion,container,nombretransformacion):
@@ -46,10 +51,6 @@ def transformacion_almacenar(transformacion,container,nombretransformacion):
     arch = open("/dbfs/mnt/"+container+"/"+nombretransformacion,"w")
     arch.write(str(lines).replace("\'","\""))
     arch.close()
-    
-
-#se monta datalake
-montar_almacenamiento(datalake,containerdl,AccessKey)
 
 #se crea carpeta temporal
 dbutils.fs.mkdirs('/mnt/'+containerdl+'/temp')
@@ -60,6 +61,20 @@ dfCategorias=spark.read.json('/mnt/getsfront/Categoria')
 dfProducto=spark.read.json('/mnt/getsfront/Productos')
 dfSubCategoria=spark.read.json('/mnt/getsfront/SubCategoria')
 dfSucursales=spark.read.json('/mnt/getsfront/Sucursales')
+
+# COMMAND ----------
+
+joinProductoSubcategoria=dfProducto.join(dfSubCategoria,dfSubCategoria.Cod_SubCategoria==dfProducto.Cod_SubCategoria)
+joinFinal=joinProductoSubcategoria.join(dfCategoria,dfCategoria.Cod_Categoria==joinProductoSubcategoria.Cod_Categoria)
+
+# COMMAND ----------
+
+display(joinProductoSubcategoria)
+display(joinFinal.select("cod_producto","producto","subcategoria","categoria"))
+
+# COMMAND ----------
+
+transformacion_almacenar(joinFinal.select("Cod_Producto","Producto","SubCategoria","Categoria"),container,"busquedacliente.json")
 
 # COMMAND ----------
 
